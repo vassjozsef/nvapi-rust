@@ -1,0 +1,8 @@
+[package]
+name = "nvapi-rust"
+version = "0.1.0"
+authors = ["Jozsef Vass <jozsef@discordapp.com>"]
+edition = "2021"
+build = "build.rs"
+
+[dependencies]
