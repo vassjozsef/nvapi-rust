@@ -10,6 +10,16 @@ pub type NV_SYSTEM_TYPE = i32;
 pub type NV_GPU_TYPE = i32;
 pub type NV_MONITOR_CONN_TYPE = i32;
 
+// Display id flags
+pub const IS_DYNAMIC: NvU32 = 0x01;
+pub const IS_MULTI_STREAM_ROOT_NODE: NvU32 = 0x02;
+pub const IS_ACTIVE: NvU32 = 0x04;
+pub const IS_CLUSTER: NvU32 = 0x08;
+pub const IS_OS_VISIBLE: NvU32 = 0x10;
+pub const IS_WFD: NvU32 = 0x20;
+pub const IS_CONNECTED: NvU32 = 0x40;
+pub const IS_PHYSICALLY_CONNECTED: NvU32 = 0x20000;
+
 #[derive(Copy, Clone, Debug)]
 #[repr(C)]
 pub struct NvPhysicalGpuHandle(*const ::std::os::raw::c_void);
@@ -39,6 +49,9 @@ impl Default for NV_GPU_DISPLAYIDS {
         }
     }
 }
+
+pub const NV_GPU_DISPLAYIDS_VER2: NvU32 =
+    std::mem::size_of::<NV_GPU_DISPLAYIDS>() as NvU32 | 3 << 16;
 
 #[link(name = "nvapi64", kind = "static")]
 extern "stdcall" {
@@ -145,5 +158,48 @@ fn main() {
             println!("Failed to NvAPI_GPU_GetConnectedDisplayIds: {}", ret);
         }
         println!("Displays: {}", displayids_count);
+        if displayids_count > 0 {
+            let mut display_ids = NV_GPU_DISPLAYIDS::default();
+            display_ids.version = NV_GPU_DISPLAYIDS_VER2;
+            let mut display_ids = vec![display_ids; displayids_count as usize];
+            let ret = unsafe {
+                NvAPI_GPU_GetConnectedDisplayIds(
+                    gpu_handles[i],
+                    display_ids.as_mut_ptr(),
+                    &mut displayids_count,
+                    0,
+                )
+            };
+            if ret != NVAPI_OK {
+                println!("Failed to NvAPI_GPU_GetConnectedDisplayIds: {}", ret);
+            }
+            for display_id in display_ids {
+                let connector_type = match display_id.connectorType {
+                    0 => "unintialized",
+                    1 => "vga",
+                    2 => "component",
+                    3 => "svideo",
+                    4 => "hdmi",
+                    5 => "dvi",
+                    6 => "lvds",
+                    7 => "dp",
+                    8 => "composite",
+                    -1 => "unknown",
+                    _ => "",
+                };
+                println!(
+                    "Connector type: {}, id: {}, flags: {}",
+                    connector_type, display_id.displayId, display_id.flags
+                );
+                println!("Dynamic: {}, Multi Stream Root Node: {}, Active: {}, Cluster: {}, Os Visible: {}, Connected: {}, Physically Connected: {}",
+                    display_id.flags & IS_DYNAMIC == IS_DYNAMIC,
+                    display_id.flags & IS_MULTI_STREAM_ROOT_NODE == IS_MULTI_STREAM_ROOT_NODE,
+                    display_id.flags & IS_ACTIVE == IS_ACTIVE,
+                    display_id.flags & IS_CLUSTER == IS_CLUSTER,
+                    display_id.flags & IS_OS_VISIBLE == IS_OS_VISIBLE,
+                    display_id.flags & IS_CONNECTED == IS_CONNECTED,
+                    display_id.flags & IS_PHYSICALLY_CONNECTED == IS_PHYSICALLY_CONNECTED);
+            }
+        }
     }
 }
