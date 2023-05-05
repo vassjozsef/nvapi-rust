@@ -1,4 +1,4 @@
-#![allow(non_camel_case_types)]
+#![allow(non_camel_case_types, non_snake_case)]
 
 pub type NvAPI_Status = i32;
 pub type NvU32 = u32;
@@ -8,6 +8,7 @@ pub const NVAPI_MAX_PHYSICAL_GPUS: usize = 64;
 pub type NvAPI_ShortString = [u8; NVAPI_SHORT_STRING_MAX];
 pub type NV_SYSTEM_TYPE = i32;
 pub type NV_GPU_TYPE = i32;
+pub type NV_MONITOR_CONN_TYPE = i32;
 
 #[derive(Copy, Clone, Debug)]
 #[repr(C)]
@@ -16,6 +17,26 @@ pub struct NvPhysicalGpuHandle(*const ::std::os::raw::c_void);
 impl Default for NvPhysicalGpuHandle {
     fn default() -> Self {
         NvPhysicalGpuHandle(::std::ptr::null())
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+#[repr(C)]
+pub struct NV_GPU_DISPLAYIDS {
+    pub version: NvU32,
+    pub connectorType: NV_MONITOR_CONN_TYPE,
+    pub displayId: NvU32,
+    pub flags: NvU32,
+}
+
+impl Default for NV_GPU_DISPLAYIDS {
+    fn default() -> Self {
+        NV_GPU_DISPLAYIDS {
+            version: 0,
+            connectorType: 0,
+            displayId: 0,
+            flags: 0,
+        }
     }
 }
 
@@ -39,18 +60,24 @@ extern "stdcall" {
         hPhysicalGpu: NvPhysicalGpuHandle,
         szName: *mut NvAPI_ShortString,
     ) -> NvAPI_Status;
+    pub fn NvAPI_GPU_GetConnectedDisplayIds(
+        hPhysicalGpu: NvPhysicalGpuHandle,
+        pDisplayIds: *mut NV_GPU_DISPLAYIDS,
+        pDisplayIdCount: *mut NvU32,
+        flags: NvU32,
+    ) -> NvAPI_Status;
 }
 
 fn main() {
     let ret = unsafe { NvAPI_Initialize() };
     if ret != NVAPI_OK {
-        println!["Failed to NvAPI_Initialize: {}", ret];
+        println!("Failed to NvAPI_Initialize: {}", ret);
     }
 
     let mut version: NvAPI_ShortString = [0; NVAPI_SHORT_STRING_MAX];
     let ret = unsafe { NvAPI_GetInterfaceVersionString(&mut version) };
     if ret != NVAPI_OK {
-        println!["Failed to NvAPI_GetInterfaceVersionString: {}", ret];
+        println!("Failed to NvAPI_GetInterfaceVersionString: {}", ret);
     }
 
     let version = String::from_utf8(version.to_vec()).expect("Invalid UTF-8");
@@ -62,7 +89,7 @@ fn main() {
     let mut gpu_count: NvU32 = 0;
     let ret = unsafe { NvAPI_EnumPhysicalGPUs(&mut gpu_handles, &mut gpu_count) };
     if ret != NVAPI_OK {
-        println!["Failed to NvAPI_EnumPhysicalGPUs: {}", ret];
+        println!("Failed to NvAPI_EnumPhysicalGPUs: {}", ret);
     }
     println!("GPU count: {}", gpu_count);
 
@@ -72,7 +99,7 @@ fn main() {
         let mut system_type: NV_SYSTEM_TYPE = 0;
         let ret = unsafe { NvAPI_GPU_GetSystemType(gpu_handles[i], &mut system_type) };
         if ret != NVAPI_OK {
-            println!["Failed to NvAPI_GPU_GetSystemType: {}", ret];
+            println!("Failed to NvAPI_GPU_GetSystemType: {}", ret);
         }
         let system_type_str = match system_type {
             0 => "unknown",
@@ -85,7 +112,7 @@ fn main() {
         let mut gpu_type: NV_GPU_TYPE = 0;
         let ret = unsafe { NvAPI_GPU_GetGPUType(gpu_handles[i], &mut gpu_type) };
         if ret != NVAPI_OK {
-            println!["Failed to NvAPI_GPU_GetGPUType: {}", ret];
+            println!("Failed to NvAPI_GPU_GetGPUType: {}", ret);
         }
         let gpu_type_str = match gpu_type {
             0 => "unknown",
@@ -98,10 +125,25 @@ fn main() {
         let mut name: NvAPI_ShortString = [0; NVAPI_SHORT_STRING_MAX];
         let ret = unsafe { NvAPI_GPU_GetFullName(gpu_handles[i], &mut name) };
         if ret != NVAPI_OK {
-            println!["Failed to NvAPI_GPU_GetFullName: {}", ret];
+            println!("Failed to NvAPI_GPU_GetFullName: {}", ret);
         }
         let name = String::from_utf8(name.to_vec()).expect("Invalid UTF-8");
         let name = name.trim_matches(char::from(0));
         println!("Name: {}", name);
+
+        // first, pass in null to get number of display ids
+        let mut displayids_count = 0;
+        let ret = unsafe {
+            NvAPI_GPU_GetConnectedDisplayIds(
+                gpu_handles[i],
+                ::std::ptr::null_mut(),
+                &mut displayids_count,
+                0,
+            )
+        };
+        if ret != NVAPI_OK {
+            println!("Failed to NvAPI_GPU_GetConnectedDisplayIds: {}", ret);
+        }
+        println!("Displays: {}", displayids_count);
     }
 }

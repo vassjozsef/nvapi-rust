@@ -17,3 +17,8 @@ Run
 ---
 
     cargo run
+
+Reference
+---
+https://github.com/arcnmx/nvapi-rs
+https://docs.nvidia.com/gameworks/content/gameworkslibrary/coresdk/nvapi/index.html
