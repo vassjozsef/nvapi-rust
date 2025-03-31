@@ -1,4 +1,4 @@
 fn main() {
-    let path = "C:\\Users\\jozsef\\Desktop\\R530-developer-2";
+    let path = "D:\\R560-developer";
     println!(r"cargo:rustc-link-search={}\amd64\", path);
 }

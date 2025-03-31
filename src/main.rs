@@ -50,6 +50,28 @@ impl Default for NV_GPU_DISPLAYIDS {
     }
 }
 
+pub const NV_GPU_ARCH_INFO_VER1: NvU32 = std::mem::size_of::<NV_GPU_ARCH_INFO>() as NvU32 | 1 << 16;
+
+#[derive(Copy, Clone, Debug)]
+#[repr(C)]
+pub struct NV_GPU_ARCH_INFO {
+    pub version: NvU32,
+    pub architecture: NvU32,
+    pub implemntation: NvU32,
+    pub revision: NvU32,
+}
+
+impl Default for NV_GPU_ARCH_INFO {
+    fn default() -> Self {
+        NV_GPU_ARCH_INFO {
+            version: NV_GPU_ARCH_INFO_VER1,
+            architecture: 0,
+            implemntation: 0,
+            revision: 0,
+        }
+    }
+}
+
 pub const NV_GPU_DISPLAYIDS_VER2: NvU32 =
     std::mem::size_of::<NV_GPU_DISPLAYIDS>() as NvU32 | 3 << 16;
 
@@ -58,7 +80,7 @@ extern "stdcall" {
     pub fn NvAPI_Initialize() -> NvAPI_Status;
     pub fn NvAPI_GetInterfaceVersionString(szDesc: *mut NvAPI_ShortString) -> NvAPI_Status;
     pub fn NvAPI_EnumPhysicalGPUs(
-        nvGPUHandle: *mut [NvPhysicalGpuHandle; NVAPI_MAX_PHYSICAL_GPUS],
+        nvGPUHandle: *mut NvPhysicalGpuHandle,
         pGpuCount: *mut NvU32,
     ) -> NvAPI_Status;
     pub fn NvAPI_GPU_GetSystemType(
@@ -78,6 +100,10 @@ extern "stdcall" {
         pDisplayIds: *mut NV_GPU_DISPLAYIDS,
         pDisplayIdCount: *mut NvU32,
         flags: NvU32,
+    ) -> NvAPI_Status;
+    pub fn NvAPI_GPU_GetArchInfo(
+        hPhysicalGpu: NvPhysicalGpuHandle,
+        pGpuArchInfo: *mut NV_GPU_ARCH_INFO,
     ) -> NvAPI_Status;
 }
 
@@ -100,7 +126,7 @@ fn main() {
     let mut gpu_handles: [NvPhysicalGpuHandle; NVAPI_MAX_PHYSICAL_GPUS] =
         [NvPhysicalGpuHandle::default(); NVAPI_MAX_PHYSICAL_GPUS];
     let mut gpu_count: NvU32 = 0;
-    let ret = unsafe { NvAPI_EnumPhysicalGPUs(&mut gpu_handles, &mut gpu_count) };
+    let ret = unsafe { NvAPI_EnumPhysicalGPUs(&mut gpu_handles[0], &mut gpu_count) };
     if ret != NVAPI_OK {
         println!("Failed to NvAPI_EnumPhysicalGPUs: {}", ret);
     }
@@ -143,6 +169,13 @@ fn main() {
         let name = String::from_utf8(name.to_vec()).expect("Invalid UTF-8");
         let name = name.trim_matches(char::from(0));
         println!("Name: {}", name);
+
+        let mut arch_info = NV_GPU_ARCH_INFO::default();
+        let ret = unsafe { NvAPI_GPU_GetArchInfo(gpu_handles[i], &mut arch_info) };
+        if ret != NVAPI_OK {
+            println!("Failed to NvAPI_GPU_GetArchInfo: {}", ret);
+        }
+        println!["Received arch: {:?}", arch_info];
 
         // first, pass in null to get number of display ids
         let mut displayids_count = 0;

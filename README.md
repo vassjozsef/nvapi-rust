@@ -5,7 +5,7 @@ Sample code detecting Optimus with NVAPI.
 
 Setup
 ---
-Download and unzip NVAPI R530. Specify path in `build.rs`.
+Download and unzip the latest NVAPI. Specify path in `build.rs`.
 
 Active Toolchain
 ---
@@ -21,4 +21,5 @@ Run
 Reference
 ---
 https://github.com/arcnmx/nvapi-rs
+
 https://docs.nvidia.com/gameworks/content/gameworkslibrary/coresdk/nvapi/index.html
